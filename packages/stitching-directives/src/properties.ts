@@ -40,7 +40,7 @@ export function getProperty(object: Record<string, any>, path: Array<string>): a
 }
 
 // c.f. https://github.com/graphql/graphql-js/blob/main/src/jsutils/promiseForObject.ts
-export function getProperties(object: Record<string, any>, propertyTree: PropertyTree): any | Promise<any> {
+export function getResolvedProperties(object: Record<string, any>, propertyTree: PropertyTree): any | Promise<any> {
   if (object == null) {
     return object;
   }
@@ -67,7 +67,7 @@ export function getProperties(object: Record<string, any>, propertyTree: Propert
           new ValueOrPromise(() => values[i])
             .then(resolvedValue =>
               deepMap(resolvedValue, function deepMapFn(item) {
-                return getProperties(item, subKey);
+                return getResolvedProperties(item, subKey);
               }).resolve()
             )
             .then(mappedValue => {

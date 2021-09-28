@@ -1,4 +1,4 @@
-import { addProperty, getProperties } from "../src/properties";
+import { addProperty, getResolvedProperties } from "../src/properties";
 
 describe('addProperty', () => {
   test('can add a key to an object', () => {
@@ -28,8 +28,8 @@ describe('addProperty', () => {
   });
 });
 
-describe('getProperties', () => {
-  test('can getProperties', async () => {
+describe('getResolvedProperties', () => {
+  test('can getResolvedProperties', async () => {
     const object = {
       field1: 'value1',
       field2: Promise.resolve({
@@ -38,7 +38,7 @@ describe('getProperties', () => {
       }),
     }
 
-    const extracted = await getProperties(object, {
+    const extracted = await getResolvedProperties(object, {
       field1: null,
       field2: {
         subfieldA: null,
