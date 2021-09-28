@@ -31,6 +31,7 @@ import { defaultStitchingDirectiveOptions } from './defaultStitchingDirectiveOpt
 import { parseMergeArgsExpr } from './parseMergeArgsExpr';
 import { addProperty, getProperty, getProperties } from './properties';
 import { stitchingDirectivesValidator } from './stitchingDirectivesValidator';
+import { ValueOrPromise } from 'value-or-promise';
 
 export function stitchingDirectivesTransformer(
   options: StitchingDirectivesOptions = {}
@@ -465,7 +466,7 @@ function forEachConcreteType(
 }
 
 function generateKeyFn(mergedTypeResolverInfo: MergedTypeResolverInfo): (originalResult: any) => any {
-  return function keyFn(originalResult: any) {
+  return function keyFn(originalResult: any): any {
     return getProperties(originalResult, mergedTypeResolverInfo.usedProperties);
   };
 }
@@ -498,19 +499,24 @@ function generateArgsFromKeysFn(
   };
 }
 
-function generateArgsFn(mergedTypeResolverInfo: MergedTypeResolverInfo): (originalResult: any) => Record<string, any> {
+function generateArgsFn(
+  mergedTypeResolverInfo: MergedTypeResolverInfo
+): (originalResult: any) => Record<string, any> | Promise<Record<string, any>> {
   const { mappingInstructions, args, usedProperties } = mergedTypeResolverInfo;
 
-  return function generateArgs(originalResult: any): Record<string, any> {
-    const newArgs = mergeDeep([{}, args]);
-    const filteredResult = getProperties(originalResult, usedProperties);
-    if (mappingInstructions) {
-      for (const mappingInstruction of mappingInstructions) {
-        const { destinationPath, sourcePath } = mappingInstruction;
-        addProperty(newArgs, destinationPath, getProperty(filteredResult, sourcePath));
-      }
-    }
-    return newArgs;
+  return function generateArgs(originalResult: any): Record<string, any> | Promise<Record<string, any>> {
+    return new ValueOrPromise(() => getProperties(originalResult, usedProperties))
+      .then(filteredResult => {
+        const newArgs = mergeDeep([{}, args]);
+        if (mappingInstructions) {
+          for (const mappingInstruction of mappingInstructions) {
+            const { destinationPath, sourcePath } = mappingInstruction;
+            addProperty(newArgs, destinationPath, getProperty(filteredResult, sourcePath));
+          }
+        }
+        return newArgs;
+      })
+      .resolve();
   };
 }
 

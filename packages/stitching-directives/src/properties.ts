@@ -1,3 +1,5 @@
+import { ValueOrPromise } from 'value-or-promise';
+
 import { PropertyTree } from './types';
 
 export function addProperty(object: Record<string, any>, path: Array<string | number>, value: any) {
@@ -37,29 +39,48 @@ export function getProperty(object: Record<string, any>, path: Array<string>): a
   return getProperty(prop, newPath);
 }
 
-export function getProperties(object: Record<string, any>, propertyTree: PropertyTree): any {
+// c.f. https://github.com/graphql/graphql-js/blob/main/src/jsutils/promiseForObject.ts
+export function getProperties(object: Record<string, any>, propertyTree: PropertyTree): any | Promise<any> {
   if (object == null) {
     return object;
   }
 
-  const newObject = Object.create(null);
+  const keys = Object.keys(propertyTree);
 
-  for (const key in propertyTree) {
-    const subKey = propertyTree[key];
+  return ValueOrPromise.all(keys.map(key => new ValueOrPromise(() => object[key])))
+    .then(values => {
+      const newValues: Array<ValueOrPromise<unknown>> = [];
 
-    if (subKey == null) {
-      newObject[key] = object[key];
-      continue;
-    }
+      const newObject = Object.create(null);
+      for (const [i, key] of keys.entries()) {
+        const subKey = propertyTree[key];
+        if (subKey == null) {
+          newValues.push(
+            new ValueOrPromise(() => values[i]).then(resolvedValue => {
+              newObject[key] = resolvedValue;
+            })
+          );
+          continue;
+        }
 
-    const prop = object[key];
+        newValues.push(
+          new ValueOrPromise(() => values[i])
+            .then(resolvedValue =>
+              deepMap(resolvedValue, function deepMapFn(item) {
+                return getProperties(item, subKey);
+              }).resolve()
+            )
+            .then(mappedValue => {
+              newObject[key] = mappedValue;
+            })
+        );
+      }
 
-    newObject[key] = deepMap(prop, function deepMapFn(item) {
-      return getProperties(item, subKey);
-    });
-  }
-
-  return newObject;
+      return ValueOrPromise.all(newValues)
+        .then(() => newObject)
+        .resolve();
+    })
+    .resolve();
 }
 
 export function propertyTreeFromPaths(paths: Array<Array<string>>): PropertyTree {
@@ -70,10 +91,16 @@ export function propertyTreeFromPaths(paths: Array<Array<string>>): PropertyTree
   return propertyTree;
 }
 
-function deepMap(arrayOrItem: any, fn: (item: any) => any): any {
+function deepMap(arrayOrItem: any, fn: (item: any) => any | Promise<any>): ValueOrPromise<any> {
   if (Array.isArray(arrayOrItem)) {
-    return arrayOrItem.map(nestedArrayOrItem => deepMap(nestedArrayOrItem, fn));
+    return ValueOrPromise.all(
+      arrayOrItem.map(nestedArrayOrItem =>
+        new ValueOrPromise(() => nestedArrayOrItem).then(resolvedNestedArrayOrItem =>
+          deepMap(resolvedNestedArrayOrItem, fn).resolve()
+        )
+      )
+    );
   }
 
-  return fn(arrayOrItem);
+  return new ValueOrPromise(() => fn(arrayOrItem));
 }

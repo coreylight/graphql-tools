@@ -29,16 +29,16 @@ describe('addProperty', () => {
 });
 
 describe('getProperties', () => {
-  test('can getProperties', () => {
+  test('can getProperties', async () => {
     const object = {
       field1: 'value1',
-      field2: {
-        subfieldA: 'valueA',
-        subfieldB: 'valueB',
-      },
+      field2: Promise.resolve({
+        subfieldA: Promise.resolve('valueA'),
+        subfieldB: Promise.resolve('valueB'),
+      }),
     }
 
-    const extracted = getProperties(object, {
+    const extracted = await getProperties(object, {
       field1: null,
       field2: {
         subfieldA: null,
