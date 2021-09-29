@@ -49,8 +49,8 @@ export function getResolvedProperties(object: Record<string, any>, propertyTree:
 
   const newObject = Object.create(null);
   return ValueOrPromise.all(
-    keys.map(key => {
-      return new ValueOrPromise(() => object[key]).then(value => {
+    keys.map(key =>
+      new ValueOrPromise(() => object[key]).then(value => {
         const subKey = propertyTree[key];
         if (subKey == null) {
           newObject[key] = value;
@@ -64,8 +64,8 @@ export function getResolvedProperties(object: Record<string, any>, propertyTree:
             newObject[key] = mappedValue;
           })
           .resolve();
-      });
-    })
+      })
+    )
   ).then(() => newObject);
 }
 
