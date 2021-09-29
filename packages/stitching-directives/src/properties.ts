@@ -40,47 +40,33 @@ export function getProperty(object: Record<string, any>, path: Array<string>): a
 }
 
 // c.f. https://github.com/graphql/graphql-js/blob/main/src/jsutils/promiseForObject.ts
-export function getResolvedProperties(object: Record<string, any>, propertyTree: PropertyTree): any | Promise<any> {
+export function getResolvedProperties(object: Record<string, any>, propertyTree: PropertyTree): ValueOrPromise<any> {
   if (object == null) {
-    return object;
+    return new ValueOrPromise(() => object);
   }
 
   const keys = Object.keys(propertyTree);
 
-  return ValueOrPromise.all(keys.map(key => new ValueOrPromise(() => object[key])))
-    .then(values => {
-      const newValues: Array<ValueOrPromise<unknown>> = [];
-
-      const newObject = Object.create(null);
-      for (const [i, key] of keys.entries()) {
+  const newObject = Object.create(null);
+  return ValueOrPromise.all(
+    keys.map(key => {
+      return new ValueOrPromise(() => object[key]).then(value => {
         const subKey = propertyTree[key];
         if (subKey == null) {
-          newValues.push(
-            new ValueOrPromise(() => values[i]).then(resolvedValue => {
-              newObject[key] = resolvedValue;
-            })
-          );
-          continue;
+          newObject[key] = value;
+          return;
         }
 
-        newValues.push(
-          new ValueOrPromise(() => values[i])
-            .then(resolvedValue =>
-              deepMap(resolvedValue, function deepMapFn(item) {
-                return getResolvedProperties(item, subKey);
-              }).resolve()
-            )
-            .then(mappedValue => {
-              newObject[key] = mappedValue;
-            })
-        );
-      }
-
-      return ValueOrPromise.all(newValues)
-        .then(() => newObject)
-        .resolve();
+        return deepMap(value, function deepMapFn(item) {
+          return getResolvedProperties(item, subKey).resolve();
+        })
+          .then(mappedValue => {
+            newObject[key] = mappedValue;
+          })
+          .resolve();
+      });
     })
-    .resolve();
+  ).then(() => newObject);
 }
 
 export function propertyTreeFromPaths(paths: Array<Array<string>>): PropertyTree {

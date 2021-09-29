@@ -31,7 +31,6 @@ import { defaultStitchingDirectiveOptions } from './defaultStitchingDirectiveOpt
 import { parseMergeArgsExpr } from './parseMergeArgsExpr';
 import { addProperty, getProperty, getResolvedProperties } from './properties';
 import { stitchingDirectivesValidator } from './stitchingDirectivesValidator';
-import { ValueOrPromise } from 'value-or-promise';
 
 export function stitchingDirectivesTransformer(
   options: StitchingDirectivesOptions = {}
@@ -467,7 +466,7 @@ function forEachConcreteType(
 
 function generateKeyFn(mergedTypeResolverInfo: MergedTypeResolverInfo): (originalResult: any) => any {
   return function keyFn(originalResult: any): any {
-    return getResolvedProperties(originalResult, mergedTypeResolverInfo.usedProperties);
+    return getResolvedProperties(originalResult, mergedTypeResolverInfo.usedProperties).resolve();
   };
 }
 
@@ -505,7 +504,7 @@ function generateArgsFn(
   const { mappingInstructions, args, usedProperties } = mergedTypeResolverInfo;
 
   return function generateArgs(originalResult: any): Record<string, any> | Promise<Record<string, any>> {
-    return new ValueOrPromise(() => getResolvedProperties(originalResult, usedProperties))
+    return getResolvedProperties(originalResult, usedProperties)
       .then(filteredResult => {
         const newArgs = mergeDeep([{}, args]);
         if (mappingInstructions) {

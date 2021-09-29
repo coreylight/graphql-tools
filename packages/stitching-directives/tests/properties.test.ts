@@ -43,7 +43,7 @@ describe('getResolvedProperties', () => {
       field2: {
         subfieldA: null,
       }
-    })
+    }).resolve();
 
     const expectedExtracted = {
       field1: 'value1',
